@@ -1,12 +1,16 @@
 apply plugin: 'com.android.application'
 
+repositories {
+    mavenLocal()
+}
+
 configurations {
     all*.exclude group: 'com.google.android', module: 'android'
 }
 
 dependencies {
     compile project(':integration-android')
-    compile 'org.bitcoinj:bitcoinj-core:0.12.3'
+    compile 'org.goldcoinj-rbh:goldcoinj-rbh-core:0.15.2'
 }
 
 android {
@@ -16,6 +20,7 @@ android {
     lintOptions { abortOnError false }
 
     defaultConfig {
+        minSdkVersion 15
         dexOptions {
             preDexLibraries false
         }
