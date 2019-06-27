@@ -62,13 +62,15 @@ public final class AboutFragment extends PreferenceFragment {
         Installer installer = Installer.from(application);
         if (installer == null)
             installer = Installer.F_DROID;
-        final Preference marketPref = findPreference(KEY_ABOUT_MARKET_APP);
-        marketPref.setTitle(getString(R.string.about_market_app_title, installer.displayName));
-        final Intent marketIntent = new Intent(Intent.ACTION_VIEW,
-                Uri.parse(installer.appStorePageFor(application).toString()));
-        if (packageManager.resolveActivity(marketIntent, 0) != null) {
-            marketPref.setIntent(marketIntent);
-            marketPref.setEnabled(true);
+        else {
+            final Preference marketPref = findPreference(KEY_ABOUT_MARKET_APP);
+            marketPref.setTitle(getString(R.string.about_market_app_title, installer.displayName));
+            final Intent marketIntent = new Intent(Intent.ACTION_VIEW,
+                    Uri.parse(installer.appStorePageFor(application).toString()));
+            if (packageManager.resolveActivity(marketIntent, 0) != null) {
+                marketPref.setIntent(marketIntent);
+                marketPref.setEnabled(true);
+            }
         }
         findPreference(KEY_ABOUT_CREDITS_BITCOINJ)
                 .setTitle(getString(R.string.about_credits_bitcoinj_title, VersionMessage.BITCOINJ_VERSION));
