@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GoldCoin RBH Wallet</string>
+    <string name="app_name_short">GoldCoin RBH</string>
+
+    <string-array name="preferences_block_explorer_values">
+        <item>https://www.blocktrail.com/BCC/</item>
+        <item>https://bitinfocharts.com/bitcoin cash/</item>
+        <!--item>https://blockchair.com/bitcoin-cash/</item-->
+    </string-array>
+    <string-array name="preferences_block_explorer_labels">
+        <item>blocktrail.com</item>
+        <item>bitinfocharts.com</item>
+        <!--itemgit >blockchair.com</item -->
+    </string-array>
+</resources>
