@@ -17,7 +17,15 @@
 
 package de.schildbach.wallet.data;
 
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.Reader;
 import java.math.BigDecimal;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Currency;
 import java.util.Iterator;
@@ -28,6 +36,7 @@ import java.util.TreeMap;
 import org.bitcoinj.core.Coin;
 import org.bitcoinj.utils.Fiat;
 import org.bitcoinj.utils.MonetaryFormat;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -238,6 +247,11 @@ public class ExchangeRatesProvider extends ContentProvider {
         request.url(BITCOINAVERAGE_URL);
         request.header("User-Agent", userAgent);
 
+        Double btcRate = 0.0;
+        Object result = getCoinValueBTC_bittrex();
+        if(result != null)
+            btcRate = (Double)result;
+
         final Builder httpClientBuilder = Constants.HTTP_CLIENT.newBuilder();
         httpClientBuilder.connectionSpecs(Arrays.asList(ConnectionSpec.RESTRICTED_TLS));
         final Call call = httpClientBuilder.build().newCall(request.build());
@@ -257,7 +271,11 @@ public class ExchangeRatesProvider extends ContentProvider {
                                 && !fiatCurrencyCode.equals(MonetaryFormat.CODE_UBTC)) {
                             final JSONObject exchangeRate = head.getJSONObject(currencyCode);
                             try {
-                                final Fiat rate = parseFiatInexact(fiatCurrencyCode, exchangeRate.getString("last"));
+                                //final Fiat rate = parseFiatInexact(fiatCurrencyCode, exchangeRate.getString("last"));
+                                double rateForBTC = exchangeRate.getDouble("last");
+                                String rateStr = String.format("%.8f", rateForBTC * btcRate).replace(",", ".");
+                                final Fiat rate = parseFiatInexact(fiatCurrencyCode, rateStr);
+
                                 if (rate.signum() > 0)
                                     rates.put(fiatCurrencyCode, new ExchangeRate(
                                             new org.bitcoinj.utils.ExchangeRate(rate), BITCOINAVERAGE_SOURCE));
@@ -288,5 +306,88 @@ public class ExchangeRatesProvider extends ContentProvider {
     private static Fiat parseFiatInexact(final String currencyCode, final String str) {
         final long val = new BigDecimal(str).movePointRight(Fiat.SMALLEST_UNIT_EXPONENT).longValue();
         return Fiat.valueOf(currencyCode, val);
+    }
+
+    public static final long copy(final Reader reader, final StringBuilder builder) throws IOException {
+        return copy(reader, builder, 0);
+    }
+
+    public static final long copy(final Reader reader, final StringBuilder builder, final long maxChars)
+            throws IOException {
+        final char[] buffer = new char[256];
+        long count = 0;
+        int n = 0;
+        while (-1 != (n = reader.read(buffer))) {
+            builder.append(buffer, 0, n);
+            count += n;
+
+            if (maxChars != 0 && count > maxChars)
+                throw new IOException("Read more than the limit of " + maxChars + " characters");
+        }
+        return count;
+    }
+
+    public static final long copy(final InputStream is, final OutputStream os) throws IOException {
+        final byte[] buffer = new byte[1024];
+        long count = 0;
+        int n = 0;
+        while (-1 != (n = is.read(buffer))) {
+            os.write(buffer, 0, n);
+            count += n;
+        }
+        return count;
+    }
+
+    private static Object getCoinValueBTC_bittrex() {
+        //final Map<String, ExchangeRate> rates = new TreeMap<String, ExchangeRate>();
+        // Keep the LTC rate around for a bit
+        Double btcRate = Double.valueOf(0.0);
+        String currency = "BTC";
+        String url = "https://bittrex.com/api/v1.1/public/getticker?market=btc-glc";
+
+
+        try {
+            // final String currencyCode = currencies[i];
+            final URL URL_bter = new URL(url);
+            final HttpURLConnection connection = (HttpURLConnection) URL_bter.openConnection();
+            connection.setConnectTimeout(30 * (int)DateUtils.SECOND_IN_MILLIS);
+            connection.setReadTimeout(30 * (int)DateUtils.SECOND_IN_MILLIS);
+            connection.connect();
+
+            final StringBuilder content = new StringBuilder();
+
+            Reader reader = null;
+            try {
+                reader = new InputStreamReader(new BufferedInputStream(connection.getInputStream(), 1024));
+                copy(reader, content);
+                final JSONObject head = new JSONObject(content.toString());
+
+				/*
+				{"success":true,"message":"","result":{"Bid":0.00313794,"Ask":0.00321785,"Last":0.00315893}}
+				}*/
+                String result = head.getString("success");
+                if (result.equals("true")) {
+                    JSONObject dataObject = head.getJSONObject("result");
+
+                    double averageTrade = dataObject.getDouble("Last");
+
+
+                    if (currency.equalsIgnoreCase("BTC"))
+                        btcRate = Double.valueOf(averageTrade);
+                }
+                log.info("fetched exchange rates from {}", url);
+                return btcRate;
+            } finally {
+                if (reader != null)
+                    reader.close();
+            }
+
+        } catch (final IOException x) {
+            x.printStackTrace();
+        } catch (final JSONException x) {
+            x.printStackTrace();
+        }
+
+        return null;
     }
 }
